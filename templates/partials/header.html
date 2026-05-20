@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Attendance</title>
+    <!-- Bootstrap -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Premium Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <!-- PDF Generation Libs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --text-color: #0f172a;
+            --text-muted: #64748b;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --card-border: rgba(226, 232, 240, 0.8);
+            --primary-grad: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            --primary-color: #6366f1;
+            --input-bg: #f1f5f9;
+            --hover-bg: rgba(99, 102, 241, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary-grad: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            --primary-color: #818cf8;
+            --input-bg: rgba(15, 23, 42, 0.6);
+            --hover-bg: rgba(129, 140, 248, 0.15);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.4s ease;
+            min-height: 100vh;
+            margin: 0;
+            background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.15), transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .premium-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .premium-card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15);
+        }
+
+        .text-gradient {
+            background: var(--primary-grad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .btn-premium {
+            background: var(--primary-grad);
+            color: white !important;
+            border: none;
+            border-radius: 16px;
+            padding: 12px 28px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            text-decoration: none;
+        }
+
+        .btn-premium:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+            color: white;
+        }
+
+        .btn-tonal {
+            background: var(--hover-bg);
+            color: var(--primary-color) !important;
+            border: none;
+            border-radius: 16px;
+            padding: 12px 28px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-tonal:hover {
+            background: var(--primary-grad);
+            color: white !important;
+            transform: translateY(-2px);
+        }
+
+        .premium-input {
+            background-color: var(--input-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 14px 20px;
+            color: var(--text-color);
+            width: 100%;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .premium-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+        }
+        
+        .premium-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .navbar-premium {
+            background: rgba(var(--bg-color), 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--card-border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--input-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+        
+        .theme-toggle:hover {
+            transform: rotate(15deg) scale(1.1);
+        }
+
+        /* Dropdown */
+        .dropdown-menu.premium-card {
+            padding: 12px;
+            border-radius: 20px;
+            margin-top: 12px !important;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+        }
+        .dropdown-item {
+            color: var(--text-color);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .dropdown-item:hover {
+            background: var(--hover-bg);
+            color: var(--primary-color);
+        }
+        .text-muted { color: var(--text-muted) !important; }
+        
+        /* Badges */
+        .premium-badge {
+            background: var(--primary-grad);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2);
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-premium mb-5">
+    <div class="container d-flex justify-content-between align-items-center">
+        <a class="navbar-brand fw-bold fs-4 d-flex align-items-center gap-2 text-gradient" href="/">
+            <span class="material-icons-round fs-2" style="color: var(--primary-color)">wifi_tethering</span>
+            Nexus
+        </a>
+        
+        <div class="d-flex align-items-center gap-3">
+            <button class="theme-toggle" id="themeToggle" title="Toggle Theme">
+                <span class="material-icons-round" id="themeIcon">dark_mode</span>
+            </button>
+            
+            {% if user %}
+                <div class="dropdown">
+                    <button class="btn-tonal dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <span class="material-icons-round">account_circle</span>
+                        {{ user.username }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end premium-card">
+                        <li><a class="dropdown-item" href="{{ url_for('dashboard') }}"><span class="material-icons-round align-middle">dashboard</span> Dashboard</a></li>
+                        <li><hr class="dropdown-divider" style="border-color: var(--card-border);"></li>
+                        <li><a class="dropdown-item" style="color: #ef4444;" href="{{ url_for('logout') }}"><span class="material-icons-round align-middle">logout</span> Logout</a></li>
+                    </ul>
+                </div>
+            {% else %}
+                <a href="{{ url_for('login') }}" class="btn-tonal text-decoration-none">Login</a>
+                <a href="{{ url_for('signup') }}" class="btn-premium text-decoration-none">Get Started</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<div class="container pb-5">
+<script>
+    const html = document.documentElement;
+    const themeIcon = document.getElementById('themeIcon');
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    html.setAttribute('data-theme', savedTheme);
+    if(themeIcon) themeIcon.textContent = savedTheme === 'dark' ? 'light_mode' : 'dark_mode';
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        if(themeIcon) themeIcon.textContent = newTheme === 'dark' ? 'light_mode' : 'dark_mode';
+    });
+</script>

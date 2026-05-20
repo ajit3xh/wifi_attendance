@@ -1,0 +1,593 @@
+{% include 'partials/header.html' %}
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="premium-card d-flex justify-content-between align-items-center flex-wrap gap-4" style="padding: 40px !important;">
+            <div>
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <h1 class="fw-bold mb-0 text-gradient" style="font-size: 2.5rem;">{{ meeting.title }}</h1>
+                    {% if meeting.active %}
+                        <span class="premium-badge">LIVE</span>
+                    {% else %}
+                        <span class="badge bg-secondary rounded-pill fs-6 py-2 px-3">ENDED</span>
+                    {% endif %}
+                </div>
+                <div class="d-flex align-items-center gap-3 text-muted fw-bold">
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="material-icons-round" style="font-size: 20px;">person</span>
+                        {{ meeting.host.username }} (Host)
+                    </div>
+                    <span class="mx-1">•</span>
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="material-icons-round" style="font-size: 20px;">calendar_today</span>
+                        {{ meeting.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex flex-wrap gap-3">
+                {% if isHost %}
+                    {% if meeting.active %}
+                        <button class="btn-tonal" id="btnShare">
+                            <span class="material-icons-round">share</span> Share Link
+                        </button>
+                        <button class="btn-tonal" id="btnQR">
+                            <span class="material-icons-round">qr_code_2</span> QR Code
+                        </button>
+                        <form action="{{ url_for('end_meeting', id=meeting.id) }}" method="POST" onsubmit="return confirm('End meeting? This will close attendance.')">
+                            <button class="btn-premium" style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);">
+                                <span class="material-icons-round">call_end</span> End Meeting
+                            </button>
+                        </form>
+                    {% else %}
+                        <button onclick="generatePDFReport()" class="btn-premium">
+                            <span class="material-icons-round">picture_as_pdf</span> Download Report
+                        </button>
+                    {% endif %}
+                {% elif userAttendance %}
+                    {% if userAttendance.leave_date %}
+                        <div class="d-flex gap-3">
+                            <div class="btn-tonal" style="background: rgba(34, 197, 94, 0.1); color: #22c55e !important; cursor: default;">
+                                <span class="material-icons-round">history</span> Left Session
+                            </div>
+                            {% if meeting.active %}
+                                <a href="{{ url_for('join_meeting', id=meeting.id) }}" class="btn-premium">
+                                    <span class="material-icons-round">login</span> Join Again
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% elif meeting.active %}
+                        <form action="{{ url_for('leave_meeting', id=meeting.id) }}" method="POST" onsubmit="return confirm('Leave this meeting?')">
+                            <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">
+                                <span class="material-icons-round">exit_to_app</span> Leave Meeting
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="btn-tonal" style="background: rgba(34, 197, 94, 0.1); color: #22c55e !important; cursor: default;">
+                            <span class="material-icons-round">verified</span> Attendance Recorded
+                        </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <div id="shareOverlay" class="mt-4 collapse">
+            <div class="premium-card p-4" style="border-left: 6px solid var(--primary-color);">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div>
+                        <h6 class="mb-2 fw-bold text-gradient text-uppercase" style="letter-spacing: 1px;">Meeting Join Link</h6>
+                        <code id="meetingUrl" class="fs-5 p-2 rounded-3" style="background: var(--input-bg); color: var(--text-color);">{{ url_origin }}/join/{{ meeting.id }}</code>
+                    </div>
+                    <button class="btn-premium" onclick="copyLink()">
+                        <span class="material-icons-round">content_copy</span> Copy Link
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="qrOverlay" class="mt-4 collapse">
+            <div class="premium-card text-center p-5" style="border-left: 6px solid var(--primary-color);">
+                <h6 class="mb-4 fw-bold text-gradient text-uppercase" style="letter-spacing: 1px;">Scan to Join</h6>
+                <div class="p-4 bg-white d-inline-block rounded-4 mb-3 shadow-lg">
+                    <img src="{{ qrImage }}" alt="QR Code" style="width: 220px; height: 220px;">
+                </div>
+                <p class="text-muted fw-bold mb-0">Participants can scan this directly from your screen</p>
+            </div>
+        </div>
+
+        {% if message %}
+            <div class="alert alert-success mt-4 border-0 rounded-4 py-3" style="background: rgba(34, 197, 94, 0.1); color: #22c55e;"><span class="fw-bold">{{ message }}</span></div>
+        {% endif %}
+        {% if error %}
+            <div class="alert alert-danger mt-4 border-0 rounded-4 py-3" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;"><span class="fw-bold">{{ error }}</span></div>
+        {% endif %}
+
+        {% if not meeting.active %}
+            <div class="premium-card mt-4 text-center p-5" style="border: 2px dashed var(--card-border);">
+                <span class="material-icons-round fs-1 mb-3 text-muted">event_busy</span>
+                <h3 class="fw-bold mb-2">This meeting has ended</h3>
+                <p class="text-muted mb-0">Attendance is closed and real-time updates are disabled for this session.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4 mt-1">
+    <div class="col-lg-6">
+        <div class="premium-card h-100">
+            {% if isHost or (userAttendance and not userAttendance.leave_date) %}
+                <div class="d-flex justify-content-between align-items-center mb-5">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-2 rounded-circle" style="background: var(--hover-bg); color: var(--primary-color);">
+                            <span class="material-icons-round fs-3">poll</span>
+                        </div>
+                        <h3 class="fw-bold mb-0">Live Polls</h3>
+                    </div>
+                    {% if isHost and meeting.active %}
+                        <button class="btn-tonal" data-bs-toggle="collapse" data-bs-target="#newPollForm">
+                            <span class="material-icons-round">add</span> New Poll
+                        </button>
+                    {% endif %}
+                </div>
+
+                {% if isHost and meeting.active %}
+                    <div class="collapse mb-5" id="newPollForm">
+                        <div class="p-4 rounded-4" style="background: var(--input-bg); border: 1px solid var(--card-border);">
+                            <form action="{{ url_for('create_poll', id=meeting.id) }}" method="POST">
+                                <input type="text" name="question" class="premium-input mb-3 bg-transparent" placeholder="What's your question?" required style="font-size: 1.1rem;">
+                                <textarea name="options" class="premium-input mb-4 bg-transparent" rows="3" placeholder="Enter options (one per line)" required></textarea>
+                                <button class="btn-premium w-100 py-3">Publish Poll</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="poll-list">
+                    <!-- Polls are injected here via JS for real-time reactivity, but rendered by Jinja initially -->
+                    {% if polls and polls|length > 0 %}
+                        {% for poll in polls %}
+                            <div class="premium-card mb-4" style="padding: 28px !important;">
+                                <h5 class="fw-bold mb-4 d-flex align-items-start gap-3" style="line-height: 1.4;">
+                                    <span class="material-icons-round" style="color: var(--primary-color);">quiz</span> 
+                                    {{ poll.question }}
+                                </h5>
+                                
+                                {% set totalVotes = poll.voted_users|length %}
+                                {% set hasVoted = false %}
+                                {% for v in poll.voted_users %}
+                                    {% if v.user_id == user.id %}
+                                        {% set hasVoted = true %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if hasVoted or isHost or not meeting.active %}
+                                    <div class="mb-4 small fw-bold text-gradient">Total Votes: {{ totalVotes }}</div>
+                                    {% for option in poll.options %}
+                                        {% set pct = (option.votes / totalVotes * 100) if totalVotes > 0 else 0 %}
+                                        <div class="mb-4">
+                                            <div class="d-flex justify-content-between small mb-2 fw-bold">
+                                                <span style="font-size: 1.05rem;">{{ option.text }}</span>
+                                                <span class="fs-6" id="votes-{{ option.id }}">{{ option.votes }}</span>
+                                            </div>
+                                            <div class="progress" style="height: 10px; border-radius: 12px; background: var(--input-bg);">
+                                                <div class="progress-bar" id="bar-{{ option.id }}" style="width: {{ pct }}%; background: var(--primary-grad); border-radius: 12px; transition: width 0.5s ease;"></div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% elif meeting.active %}
+                                    <form action="{{ url_for('vote') }}" method="POST">
+                                        <input type="hidden" name="meetingId" value="{{ meeting.id }}">
+                                        <input type="hidden" name="pollId" value="{{ poll.id }}">
+                                        {% for option in poll.options %}
+                                            <label class="d-block mb-3 p-3 rounded-4 border premium-card-hover" style="background: var(--input-bg); cursor: pointer; border-color: var(--card-border) !important;">
+                                                <div class="form-check m-0 d-flex align-items-center gap-3">
+                                                    <input class="form-check-input mt-0" type="radio" name="optionId" id="opt-{{ option.id }}" value="{{ option.id }}" required style="width: 22px; height: 22px;">
+                                                    <span class="fw-bold" style="font-size: 1.05rem;">{{ option.text }}</span>
+                                                </div>
+                                            </label>
+                                        {% endfor %}
+                                        <button type="submit" class="btn-premium w-100 py-3 mt-3 fs-6">Submit Vote</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5 text-muted" style="border: 2px dashed var(--card-border); border-radius: 20px;">
+                            <span class="material-icons-round fs-1 mb-3">ballot</span>
+                            <p class="mb-0 fw-bold fs-5">No polls active right now.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% elif userAttendance and userAttendance.leave_date %}
+                <div class="text-center py-5 text-muted h-100 d-flex flex-column justify-content-center align-items-center">
+                    <span class="material-icons-round fs-1 mb-3">history</span>
+                    <p class="mb-0 fw-bold fs-5">You have left this meeting.</p>
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted h-100 d-flex flex-column justify-content-center align-items-center">
+                    <span class="material-icons-round fs-1 mb-3">lock</span>
+                    <p class="mb-0 fw-bold fs-5">Verify your presence to view polls.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="premium-card h-100">
+            {% if isHost or (userAttendance and not userAttendance.leave_date) %}
+                <div class="d-flex justify-content-between align-items-center mb-5">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-2 rounded-circle" style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">
+                            <span class="material-icons-round fs-3">group</span>
+                        </div>
+                        <h3 class="fw-bold mb-0">Attendees</h3>
+                    </div>
+                    <span class="premium-badge meeting-badge">{{ attendances|length }} joined</span>
+                </div>
+
+                <div class="attendance-list pe-2" style="max-height: 500px; overflow-y: auto;">
+                    {% if attendances and attendances|length > 0 %}
+                        {% for record in attendances %}
+                            <div class="d-flex align-items-center justify-content-between p-4 mb-3 border rounded-4 premium-card-hover" style="background: var(--card-bg); border-color: var(--card-border) !important;">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px; background: var(--primary-grad); color: white;">
+                                        {{ record.user.username[0]|upper if record.user else '?' }}
+                                    </div>
+                                    <div>
+                                        <h5 class="mb-0 fw-bold">{{ record.user.username if record.user else 'Unknown' }}</h5>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="text-end">
+                                        {% if record.log and record.log|length > 0 %}
+                                            {% for event in record.log %}
+                                                <div class="fw-bold {{ 'text-success' if event.type == 'join' else 'text-danger' }}" style="font-size: 0.85rem;">
+                                                    <span class="material-icons-round align-middle me-1" style="font-size: 16px;">{{ 'login' if event.type == 'join' else 'logout' }}</span>
+                                                    {{ event.timestamp.strftime('%I:%M %p') }}
+                                                </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="fw-bold text-success" style="font-size: 0.85rem;">
+                                                <span class="material-icons-round align-middle me-1" style="font-size: 16px;">login</span>
+                                                {{ record.date.strftime('%I:%M %p') }}
+                                            </div>
+                                            {% if record.leave_date %}
+                                                <div class="fw-bold text-danger" style="font-size: 0.85rem;">
+                                                    <span class="material-icons-round align-middle me-1" style="font-size: 16px;">logout</span>
+                                                    {{ record.leave_date.strftime('%I:%M %p') }}
+                                                </div>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    {% if isHost %}
+                                        <div class="dropdown ms-2">
+                                            <button class="btn btn-sm btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                                <span class="material-icons-round">more_vert</span>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end premium-card py-2 px-0 shadow-lg border-0" style="min-width: 150px;">
+                                                <li>
+                                                    <form action="{{ url_origin }}/meeting/{{ meeting.id }}/kick/{{ record.user.id }}" method="POST">
+                                                        <button type="submit" class="dropdown-item text-warning fw-bold py-2 px-3">
+                                                            <span class="material-icons-round fs-5 me-2">person_remove</span> Kick
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <form action="{{ url_origin }}/meeting/{{ meeting.id }}/ban/{{ record.user.id }}" method="POST" onsubmit="return confirm('Ban this user? They will not be able to rejoin.')">
+                                                        <button type="submit" class="dropdown-item text-danger fw-bold py-2 px-3">
+                                                            <span class="material-icons-round fs-5 me-2">block</span> Ban
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <span class="material-icons-round fs-1 mb-3">person_off</span>
+                            <p class="mb-0 fw-bold fs-5">Waiting for participants to join...</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% elif userAttendance and userAttendance.leave_date %}
+                <div class="mt-4 p-5 rounded-4 border text-center d-flex flex-column justify-content-center h-100" style="background: var(--input-bg); border-color: var(--card-border) !important;">
+                    <span class="material-icons-round fs-1 mb-3 text-muted">history</span>
+                    <h5 class="fw-bold mb-4">You have left this meeting</h5>
+                    <p class="text-muted mb-4">You can no longer view live attendees. If the meeting is still active, you can rejoin to participate.</p>
+                </div>
+            {% else %}
+                <div class="mt-4 p-5 rounded-4 border text-center d-flex flex-column justify-content-center h-100" style="background: var(--input-bg); border-color: var(--card-border) !important;">
+                    <h5 class="fw-bold mb-4">Presence Verification Required</h5>
+                    <p class="text-muted mb-4">You must verify you are on the same WiFi network as the host to view attendees and polls.</p>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('join_meeting', id=meeting.id) }}" class="btn-premium py-3 justify-content-center fs-5">
+                            <span class="material-icons-round fs-4">wifi</span> Verify via WiFi
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    const btnShare = document.getElementById('btnShare');
+    const shareOverlay = document.getElementById('shareOverlay');
+    const qrOverlay = document.getElementById('qrOverlay');
+
+    if(btnShare && shareOverlay) {
+        btnShare.addEventListener('click', () => {
+            if (qrOverlay.classList.contains('show')) bootstrap.Collapse.getOrCreateInstance(qrOverlay).hide();
+            bootstrap.Collapse.getOrCreateInstance(shareOverlay).toggle();
+        });
+    }
+
+    const btnQR = document.getElementById('btnQR');
+    if(btnQR && qrOverlay) {
+        btnQR.addEventListener('click', () => {
+            if (shareOverlay.classList.contains('show')) bootstrap.Collapse.getOrCreateInstance(shareOverlay).hide();
+            bootstrap.Collapse.getOrCreateInstance(qrOverlay).toggle();
+        });
+    }
+
+    function copyLink() {
+        const url = document.getElementById('meetingUrl').textContent;
+        const fallbackCopy = (text) => {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            const success = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            return success;
+        };
+
+        if (!navigator.clipboard) {
+            if (fallbackCopy(url)) alert('Link copied!');
+            else alert('Failed to copy.');
+            return;
+        }
+
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Meeting link copied to clipboard!');
+        }).catch(() => {
+            if (fallbackCopy(url)) alert('Link copied!');
+            else alert('Failed to copy.');
+        });
+    }
+
+    function generatePDFReport() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const meetingTitle = "{{ meeting.title }}";
+        const hostName = "{{ meeting.host.username }}";
+        const date = "{{ meeting.created_at.strftime('%Y-%m-%d %H:%M:%S') }}";
+        
+        doc.setFontSize(22);
+        doc.setTextColor(99, 102, 241); 
+        doc.text("Meeting Attendance Report", 14, 20);
+        doc.setFontSize(12);
+        doc.setTextColor(100);
+        doc.text(`Meeting: ${meetingTitle}`, 14, 30);
+        doc.text(`Host: ${hostName}`, 14, 37);
+        doc.text(`Date: ${date}`, 14, 44);
+        doc.line(14, 50, 196, 50);
+
+        doc.setFontSize(16);
+        doc.setTextColor(0);
+        doc.text("Attendees", 14, 60);
+        const attendeeRows = [];
+        {% for a in attendances %}
+            {
+                const joinTimes = [];
+                const leaveTimes = [];
+                {% if a.log and a.log|length > 0 %}
+                    {% for event in a.log %}
+                        if ("{{ event.type }}" === 'join') joinTimes.push("{{ event.timestamp.strftime('%I:%M %p') }}");
+                        else leaveTimes.push("{{ event.timestamp.strftime('%I:%M %p') }}");
+                    {% endfor %}
+                {% else %}
+                    joinTimes.push("{{ a.date.strftime('%I:%M %p') }}");
+                    {% if a.leave_date %}
+                        leaveTimes.push("{{ a.leave_date.strftime('%I:%M %p') }}");
+                    {% endif %}
+                {% endif %}
+
+                attendeeRows.push([
+                    "{{ a.user.username if a.user else 'N/A' }}", 
+                    joinTimes.join(', '), 
+                    leaveTimes.length > 0 ? leaveTimes.join(', ') : 'In Session'
+                ]);
+            }
+        {% endfor %}
+        doc.autoTable({
+            head: [['Username', 'Join Times', 'Leave Times']],
+            body: attendeeRows,
+            startY: 65,
+            theme: 'striped',
+            headStyles: { fillColor: [99, 102, 241] }
+        });
+
+        let finalY = doc.lastAutoTable.finalY + 15;
+        doc.setFontSize(16);
+        doc.text("Poll Results", 14, finalY);
+        {% if polls and polls|length > 0 %}
+            {% for poll in polls %}
+                finalY += 10;
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text("Poll: {{ poll.question }}", 14, finalY);
+                doc.setFont(undefined, 'normal');
+                const pollRows = [];
+                {% for v in poll.voted_users %}
+                    {% set userObj = v.user.username if v.user else 'Unknown' %}
+                    {% set optObj = poll.options | selectattr("id", "equalto", v.option_id) | first %}
+                    {% set optText = optObj.text if optObj else 'N/A' %}
+                    pollRows.push(["{{ userObj }}", "{{ optText }}"]);
+                {% endfor %}
+                doc.autoTable({
+                    head: [['Voter', 'Selected Option']],
+                    body: pollRows,
+                    startY: finalY + 5,
+                    theme: 'grid',
+                    headStyles: { fillColor: [100, 100, 100] }
+                });
+                finalY = doc.lastAutoTable.finalY + 5;
+            {% endfor %}
+        {% endif %}
+        doc.save(`${meetingTitle}_Report.pdf`);
+    }
+
+    const meetingId = '{{ meeting.id }}';
+    const currentUserId = '{{ user.id }}';
+    let lastAttendeeCount = {{ attendances|length }};
+
+    async function refreshMeetingData() {
+        try {
+            const apiPath = window.location.pathname.replace(/\/$/, '') + '/api/data';
+            const response = await fetch(`${apiPath}?t=${Date.now()}`, { cache: 'no-store' });
+            const data = await response.json();
+
+            // Handle Attendance
+            const currentAttendeeDataStr = JSON.stringify(data.attendances);
+            if (window.lastAttendeeDataStr !== currentAttendeeDataStr && data.attendances) {
+                window.lastAttendeeDataStr = currentAttendeeDataStr;
+                lastAttendeeCount = data.attendances.length;
+                
+                const badgeEl = document.querySelector('.meeting-badge');
+                if (badgeEl) badgeEl.textContent = `${lastAttendeeCount} joined`;
+                
+                const listContainer = document.querySelector('.attendance-list');
+                if (data.attendances.length > 0 && listContainer) {
+                    listContainer.innerHTML = data.attendances.map(record => `
+                        <div class="d-flex align-items-center justify-content-between p-4 mb-3 border rounded-4 premium-card-hover" style="background: var(--card-bg); border-color: var(--card-border) !important;">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px; background: var(--primary-grad); color: white;">
+                                    ${record.userId && record.userId.username ? record.userId.username.charAt(0).toUpperCase() : '?'}
+                                </div>
+                                <div>
+                                    <h5 class="mb-0 fw-bold">${record.userId && record.userId.username ? record.userId.username : 'Unknown'}</h5>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="text-end">
+                                    ${(record.log || []).map(event => `
+                                        <div class="fw-bold ${event.type === 'join' ? 'text-success' : 'text-danger'}" style="font-size: 0.85rem;">
+                                            <span class="material-icons-round align-middle me-1" style="font-size: 16px;">${event.type === 'join' ? 'login' : 'logout'}</span>
+                                            ${new Date(event.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                ${ '{{ isHost }}' === 'True' ? `
+                                    <div class="dropdown ms-2">
+                                        <button class="btn btn-sm btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                            <span class="material-icons-round">more_vert</span>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end premium-card py-2 px-0 shadow-lg border-0" style="min-width: 150px;">
+                                            <li>
+                                                <form action="{{ url_origin }}/meeting/${meetingId}/kick/${record.userId._id}" method="POST">
+                                                    <button type="submit" class="dropdown-item text-warning fw-bold py-2 px-3">
+                                                        <span class="material-icons-round fs-5 me-2">person_remove</span> Kick
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            <li>
+                                                <form action="{{ url_origin }}/meeting/${meetingId}/ban/${record.userId._id}" method="POST" onsubmit="return confirm('Ban this user? They will not be able to rejoin.')">
+                                                    <button type="submit" class="dropdown-item text-danger fw-bold py-2 px-3">
+                                                        <span class="material-icons-round fs-5 me-2">block</span> Ban
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                ` : '' }
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            // Handle Real-time Polls completely
+            const currentPollDataStr = JSON.stringify(data.polls);
+            if (window.lastPollDataStr !== currentPollDataStr && data.polls) {
+                window.lastPollDataStr = currentPollDataStr;
+                const pollListEl = document.querySelector('.poll-list');
+                if(pollListEl) {
+                    if (data.polls.length === 0) {
+                        pollListEl.innerHTML = `<div class="text-center py-5 text-muted" style="border: 2px dashed var(--card-border); border-radius: 20px;"><span class="material-icons-round fs-1 mb-3">ballot</span><p class="mb-0 fw-bold fs-5">No polls active right now.</p></div>`;
+                    } else {
+                        pollListEl.innerHTML = data.polls.map(poll => {
+                            const totalVotes = poll.votedUsers ? poll.votedUsers.length : 0;
+                            const hasVoted = poll.votedUsers.some(v => v.userId._id === currentUserId);
+                            const canVote = !hasVoted && ('{{ isHost }}' !== 'True') && data.active;
+                            
+                            let html = `<div class="premium-card mb-4" style="padding: 28px !important;">
+                                <h5 class="fw-bold mb-4 d-flex align-items-start gap-3" style="line-height: 1.4;">
+                                    <span class="material-icons-round" style="color: var(--primary-color);">quiz</span> 
+                                    ${poll.question}
+                                </h5>`;
+                                
+                            if (!canVote) {
+                                html += `<div class="mb-4 small fw-bold text-gradient">Total Votes: ${totalVotes}</div>`;
+                                poll.options.forEach(opt => {
+                                    const pct = totalVotes > 0 ? (opt.votes / totalVotes) * 100 : 0;
+                                    html += `
+                                        <div class="mb-4">
+                                            <div class="d-flex justify-content-between small mb-2 fw-bold">
+                                                <span style="font-size: 1.05rem;">${opt.text}</span>
+                                                <span class="fs-6">${opt.votes}</span>
+                                            </div>
+                                            <div class="progress" style="height: 10px; border-radius: 12px; background: var(--input-bg);">
+                                                <div class="progress-bar" style="width: ${pct}%; background: var(--primary-grad); border-radius: 12px; transition: width 0.5s ease;"></div>
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                            } else {
+                                html += `<form action="{{ url_for('vote') }}" method="POST">
+                                    <input type="hidden" name="meetingId" value="${meetingId}">
+                                    <input type="hidden" name="pollId" value="${poll._id}">`;
+                                poll.options.forEach(opt => {
+                                    html += `
+                                        <label class="d-block mb-3 p-3 rounded-4 border premium-card-hover" style="background: var(--input-bg); cursor: pointer; border-color: var(--card-border) !important;">
+                                            <div class="form-check m-0 d-flex align-items-center gap-3">
+                                                <input class="form-check-input mt-0" type="radio" name="optionId" value="${opt._id}" required style="width: 22px; height: 22px;">
+                                                <span class="fw-bold" style="font-size: 1.05rem;">${opt.text}</span>
+                                            </div>
+                                        </label>`;
+                                });
+                                html += `<button type="submit" class="btn-premium w-100 py-3 mt-3 fs-6">Submit Vote</button></form>`;
+                            }
+                            html += `</div>`;
+                            return html;
+                        }).join('');
+                    }
+                }
+            }
+
+            if (data.active === false) {
+                const badge = document.querySelector('.badge.bg-success');
+                if (badge || document.querySelector('.premium-badge:not(.meeting-badge)')) {
+                    const el = badge || document.querySelector('.premium-badge:not(.meeting-badge)');
+                    if (el.textContent === 'LIVE') {
+                        el.className = 'badge bg-secondary rounded-pill fs-6 py-2 px-3';
+                        el.textContent = 'ENDED';
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Polling error:", err);
+        }
+    }
+
+    if ({{ 'true' if meeting.active else 'false' }}) {
+        setInterval(refreshMeetingData, 3000); // Polling faster for better real-time feel
+    }
+</script>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

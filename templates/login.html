@@ -1,0 +1,45 @@
+{% include 'partials/header.html' %}
+
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6 col-lg-5">
+        <div class="premium-card text-center text-md-start">
+            <div class="text-center mb-5">
+                <div class="d-inline-flex p-3 rounded-circle mb-3" style="background: var(--hover-bg);">
+                    <span class="material-icons-round fs-1" style="color: var(--primary-color);">fingerprint</span>
+                </div>
+                <h2 class="fw-bold">Welcome Back</h2>
+                <p class="text-muted">Sign in to manage your meetings</p>
+            </div>
+            
+            {% if error %}
+                <div class="alert alert-danger py-3 border-0 rounded-4 mb-4" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                    <span class="material-icons-round align-middle me-2">error_outline</span>
+                    {{ error }}
+                </div>
+            {% endif %}
+
+            <form action="{{ url_for('login') }}" method="POST">
+                <div class="mb-4 text-start">
+                    <label class="fw-bold mb-2 small text-muted" style="letter-spacing: 1px;">USERNAME</label>
+                    <input type="text" name="username" class="premium-input" placeholder="Enter your username" required>
+                </div>
+                <div class="mb-5 text-start">
+                    <label class="fw-bold mb-2 small text-muted" style="letter-spacing: 1px;">PASSWORD</label>
+                    <input type="password" name="password" class="premium-input" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="btn-premium w-100 py-3 fs-5">
+                    Sign In
+                    <span class="material-icons-round ms-2">arrow_forward</span>
+                </button>
+            </form>
+            
+            <div class="text-center mt-5 pt-4" style="border-top: 1px solid var(--card-border);">
+                <p class="mb-0 text-muted">Don't have an account? <a href="{{ url_for('signup') }}" class="fw-bold text-decoration-none" style="color: var(--primary-color);">Create one</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

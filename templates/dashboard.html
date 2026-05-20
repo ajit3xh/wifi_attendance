@@ -1,0 +1,156 @@
+{% include 'partials/header.html' %}
+
+<div class="row mb-5">
+    <div class="col-12 text-center">
+        <h1 class="fw-bold mb-3">Your <span class="text-gradient">Dashboard</span></h1>
+        <p class="text-muted">Manage your hosted sessions and attendance history</p>
+        
+        {% if message %}
+            <div class="alert alert-success border-0 rounded-4 py-3 mx-auto mt-4" style="max-width: 600px; background: rgba(34, 197, 94, 0.1); color: #22c55e;">
+                <span class="material-icons-round align-middle me-2">check_circle</span>{{ message }}
+            </div>
+        {% endif %}
+        {% if error %}
+            <div class="alert alert-danger border-0 rounded-4 py-3 mx-auto mt-4" style="max-width: 600px; background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <span class="material-icons-round align-middle me-2">error</span>{{ error }}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Quick Actions -->
+    <div class="col-lg-5">
+        <div class="premium-card mb-4 text-center">
+            <div class="d-inline-flex p-3 rounded-circle mb-3" style="background: var(--hover-bg);">
+                <span class="material-icons-round fs-1" style="color: var(--primary-color);">sensors</span>
+            </div>
+            <h3 class="fw-bold">Start a Meeting</h3>
+            <p class="text-muted small mb-4">Create a secure room for same-network attendance verification.</p>
+            
+            <div class="mx-auto px-4 py-2 rounded-pill mb-4 small fw-bold d-inline-flex align-items-center gap-2" style="background: var(--hover-bg); color: var(--primary-color);">
+                <span class="material-icons-round" style="font-size: 18px;">wifi</span>
+                Current Network: {{ clientIp }}
+            </div>
+
+            <form action="{{ url_for('create_meeting') }}" method="POST">
+                <input type="text" name="title" class="premium-input text-center mb-3" placeholder="Meeting Title (e.g. Daily Standup)" required>
+                <button type="submit" class="btn-premium w-100 py-3">
+                    <span class="material-icons-round">add_circle</span> Launch Room
+                </button>
+            </form>
+        </div>
+
+        <div class="premium-card text-center">
+            <div class="d-inline-flex p-3 rounded-circle mb-3" style="background: var(--hover-bg);">
+                <span class="material-icons-round fs-1" style="color: var(--primary-color);">login</span>
+            </div>
+            <h3 class="fw-bold">Join Meeting</h3>
+            <p class="text-muted small mb-4">Enter a meeting ID to connect</p>
+            
+            <input type="text" id="joinIdInput" class="premium-input text-center mb-3" placeholder="Meeting ID or Link">
+            <button type="button" onclick="joinMeeting()" class="btn-tonal w-100 py-3">
+                Join Room <span class="material-icons-round">arrow_forward</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- History -->
+    <div class="col-lg-7">
+        <div class="premium-card mb-4" style="padding: 32px !important;">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="p-2 rounded-circle" style="background: var(--primary-grad); color: white;">
+                    <span class="material-icons-round d-block">stars</span>
+                </div>
+                <h4 class="fw-bold mb-0">Rooms You Host</h4>
+            </div>
+            
+            <div>
+                {% if hostedMeetings and hostedMeetings|length > 0 %}
+                    {% for m in hostedMeetings %}
+                        <div class="d-flex align-items-center mb-3 gap-3">
+                            <a href="{{ url_for('meeting_room', id=m.id) }}" class="flex-grow-1 d-flex justify-content-between align-items-center text-decoration-none premium-card premium-card-hover" style="padding: 20px !important;">
+                                <div>
+                                    <h6 class="mb-1 fw-bold fs-5" style="color: var(--text-color);">{{ m.title }}</h6>
+                                    <div class="d-flex align-items-center gap-2 text-muted small mt-2 fw-bold">
+                                        <span class="material-icons-round" style="font-size: 16px;">schedule</span>
+                                        {{ m.created_at.strftime('%Y-%m-%d') }}
+                                        {% if not m.active %}
+                                            <span class="badge bg-secondary rounded-pill ms-2">Ended</span>
+                                        {% else %}
+                                            <span class="premium-badge ms-2">Live</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <span class="material-icons-round fs-3" style="color: var(--primary-color);">chevron_right</span>
+                            </a>
+                            <form action="{{ url_for('delete_meeting', id=m.id) }}" method="POST" onsubmit="return confirm('DANGER: Permanently delete this meeting?')">
+                                <button type="submit" class="btn btn-link p-2 transition" style="color: #ef4444; border-radius: 50%; background: rgba(239, 68, 68, 0.1);">
+                                    <span class="material-icons-round">delete</span>
+                                </button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5 text-muted" style="border: 2px dashed var(--card-border); border-radius: 20px;">
+                        <span class="material-icons-round fs-1 mb-2">history</span>
+                        <p class="mb-0 fw-bold">No meetings hosted yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="premium-card" style="padding: 32px !important;">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="p-2 rounded-circle" style="background: var(--hover-bg); color: var(--primary-color);">
+                    <span class="material-icons-round d-block">history_toggle_off</span>
+                </div>
+                <h4 class="fw-bold mb-0">Joined History</h4>
+            </div>
+            
+            <div>
+                {% if attendedHistory and attendedHistory|length > 0 %}
+                    {% for h in attendedHistory %}
+                        <div class="d-flex align-items-center mb-3 gap-3">
+                            <a href="{{ url_for('meeting_room', id=h.meeting.id) }}" class="flex-grow-1 d-flex justify-content-between align-items-center text-decoration-none premium-card premium-card-hover" style="padding: 20px !important;">
+                                <div>
+                                    <h6 class="mb-1 fw-bold fs-5" style="color: var(--text-color);">{{ h.meeting.title }}</h6>
+                                    <div class="d-flex align-items-center gap-2 text-muted small mt-2 fw-bold">
+                                        <span class="material-icons-round" style="font-size: 16px;">schedule</span>
+                                        {{ h.meeting.created_at.strftime('%Y-%m-%d') }}
+                                    </div>
+                                </div>
+                                <span class="material-icons-round text-muted fs-4">visibility</span>
+                            </a>
+                            <form action="{{ url_for('delete_attendance', id=h.attendanceId) }}" method="POST" onsubmit="return confirm('Remove this meeting from your history?')">
+                                <button type="submit" class="btn btn-link p-2 transition" style="color: var(--text-muted); background: var(--input-bg); border-radius: 50%;">
+                                    <span class="material-icons-round">close</span>
+                                </button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5 text-muted" style="border: 2px dashed var(--card-border); border-radius: 20px;">
+                        <p class="mb-0 fw-bold">No attendance records found.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function joinMeeting() {
+        let input = document.getElementById('joinIdInput').value.trim();
+        if(!input) return alert('Please enter a meeting ID or link');
+        const parts = input.split('/');
+        const meetingId = parts[parts.length - 1];
+        if(meetingId.length < 1) return alert('Please enter a valid Meeting ID or link');
+        window.location.href = `/meeting/${meetingId}`;
+    }
+</script>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
