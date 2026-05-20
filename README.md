@@ -100,25 +100,6 @@ python app.py
 
 Open your browser and visit: `http://localhost:3000`
 
-## ☁️ Deployment Guide
-
-### For Immediate Free Deployment (Best for getting started)
-**PythonAnywhere** is highly recommended for a free, zero-cost deployment using the default SQLite database. Because PythonAnywhere offers a persistent file system on their free tier, your SQLite database will not be erased when the server restarts.
-1. Sign up for a free [PythonAnywhere](https://www.pythonanywhere.com/) account.
-2. Upload your files and install your `requirements.txt` via their Bash console.
-3. Configure the WSGI file to point to your `app.py` Flask instance.
-
-### For Future Scalability (Production-ready)
-To scale perfectly for hundreds of concurrent users without paying a dime initially, use a combination of **Render** (for hosting the app) and **Neon.tech** (for the database).
-*Note: Render's free tier uses ephemeral storage, which means standard SQLite files will be wiped on every deploy. You MUST use a remote database like PostgreSQL.*
-
-1. **Database:** Create a free serverless PostgreSQL database on [Neon.tech](https://neon.tech/) or [Supabase](https://supabase.com/). Copy the connection string.
-2. **Hosting:** Create a new "Web Service" on [Render.com](https://render.com/) and connect your GitHub repository.
-3. **Environment:** In Render's dashboard, add your `.env` variables. Set `DATABASE_URL` to your Neon PostgreSQL connection string.
-4. **Build Command:** `pip install -r requirements.txt`
-5. **Start Command:** `gunicorn app:app`
-
----
 
 ## 👤 Author
 
