@@ -103,5 +103,5 @@ Open your browser and visit: `http://localhost:3000`
 
 ## 👤 Author
 
-[![Github](https://img.shields.io/badge/GitHub-181717?style=plastic&logo=github&logoColor=white)](https://github.com/yourusername)
-[![Project](https://img.shields.io/badge/Project-Repository-blue?style=plastic&logo=github&logoColor=white)](https://github.com/yourusername/wifi-attendance)
+[![Github](https://img.shields.io/badge/GitHub-181717?style=plastic&logo=github&logoColor=white)](https://github.com/ajit3xh)
+[![Project](https://img.shields.io/badge/Project-Repository-blue?style=plastic&logo=github&logoColor=white)](https://github.com/ajit3xh/wifi_attendance.git)
