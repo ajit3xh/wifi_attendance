@@ -6,3 +6,10 @@ __pycache__/
 instance/
 attendance.db
 venv/
+
+# Docs and templates
+*.docx
+*.pptx
+*.txt
+*.md
+!README.md
