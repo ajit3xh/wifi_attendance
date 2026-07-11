@@ -78,7 +78,7 @@ def login():
         else:
             token = jwt.encode({
                 'userId': user.id,
-                'exp': get_ist() + timedelta(days=1)
+                'exp': datetime.utcnow() + timedelta(days=1)
             }, app.config['SECRET_KEY'], algorithm="HS256")
             
             resp = make_response(redirect(url_for('dashboard')))
@@ -104,7 +104,7 @@ def signup():
             
             token = jwt.encode({
                 'userId': new_user.id,
-                'exp': get_ist() + timedelta(days=1)
+                'exp': datetime.utcnow() + timedelta(days=1)
             }, app.config['SECRET_KEY'], algorithm="HS256")
             
             resp = make_response(redirect(url_for('dashboard')))
@@ -417,7 +417,7 @@ def get_meeting_data(id):
         
     polls_data = []
     for p in polls:
-        voted_users = [{'userId': {'_id': str(v.user_id)}, 'optionId': v.option_id} for v in p.voted_users]
+        voted_users = [{'userId': {'_id': str(v.user_id)}, 'optionId': str(v.option_id)} for v in p.voted_users]
         options_data = [{'_id': str(o.id), 'text': o.text, 'votes': o.votes} for o in p.options]
         polls_data.append({
             '_id': str(p.id),
